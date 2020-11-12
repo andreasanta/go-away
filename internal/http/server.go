@@ -5,6 +5,7 @@ import (
 	"goaway/internal/utils"
 	"log"
 	"os"
+	"runtime"
 	"strconv"
 	"time"
 
@@ -110,6 +111,9 @@ func RunServer() {
 	LoadDatabase()
 
 	r := gin.Default()
+
+	// Maximize parallellism
+	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	v1 := r.Group("api/v1")
 	{
