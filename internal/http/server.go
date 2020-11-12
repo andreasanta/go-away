@@ -14,7 +14,7 @@ import (
 
 var IpList map[uint32]models.IPRange
 
-func loadDatabase() {
+func LoadDatabase() {
 
 	log.Println("Loading database, will take a long while")
 
@@ -27,7 +27,7 @@ func loadDatabase() {
 		log.Fatal(err)
 	}
 
-	IpList = make(map[uint32]models.IPRange)
+	records := make(map[uint32]models.IPRange)
 
 	if err != nil {
 		log.Fatal(err)
@@ -37,12 +37,13 @@ func loadDatabase() {
 	db.Table("ip_ranges").Where("end = ?", 0).FindInBatches(&results, 10000, func(tx *gorm.DB, batch int) error {
 		for _, result := range results {
 			// batch processing found records
-			IpList[result.Start] = result
+			records[result.Start] = result
 		}
 		return nil
 	})
 
-	log.Printf("Loaded DB rows %d", len(IpList))
+	log.Printf("Loaded DB rows %d", len(records))
+	IpList = records
 
 }
 
@@ -58,14 +59,14 @@ func RunServer() {
 
 	utils.LoadConfig()
 
-	loadDatabase()
+	LoadDatabase()
 
 	r := gin.Default()
 
 	v1 := r.Group("api/v1")
 	{
 		v1.GET("/ip/:ip", GetIp)
-		//v1.GET("/reload", GetReload)
+		v1.GET("/reload", GetReload)
 	}
 
 	r.Run(":" + os.Getenv("SERVER_PORT"))
