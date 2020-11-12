@@ -8,6 +8,7 @@ import (
 
 type Range struct {
 	Low, High uint32
+	Metadata  map[string]string
 }
 
 type RangeSet struct {
@@ -17,7 +18,7 @@ type RangeSet struct {
 func (rs *RangeSet) AddInts(nums []uint32) {
 	for _, num := range nums {
 		if len(rs.Ranges) == 0 {
-			rs.Ranges = append(rs.Ranges, Range{num, num})
+			rs.Ranges = append(rs.Ranges, Range{num, num, nil})
 			continue
 		}
 
@@ -41,20 +42,20 @@ func (rs *RangeSet) AddInts(nums []uint32) {
 					nextRange := rs.Ranges[j+1]
 					if nextRange.Low-1 == num {
 						// closes a gap
-						rs.Ranges = splice(rs.Ranges, j, 2, Range{low, nextRange.High})
+						rs.Ranges = splice(rs.Ranges, j, 2, Range{low, nextRange.High, nil})
 					}
 				}
 				break
 			}
 
 			if num < low {
-				rs.Ranges = splice(rs.Ranges, j, 0, Range{num, num})
+				rs.Ranges = splice(rs.Ranges, j, 0, Range{num, num, nil})
 				break
 			}
 
 			// if none of the previous ranges or gaps contain the num
 			if isLastLoop {
-				rs.Ranges = append(rs.Ranges, Range{num, num})
+				rs.Ranges = append(rs.Ranges, Range{num, num, nil})
 			}
 		}
 	}
@@ -77,8 +78,8 @@ func (rs *RangeSet) RemoveInts(nums []uint32) {
 			} else if high == num {
 				rs.Ranges[j].High = high - 1
 			} else {
-				rs.Ranges = splice(rs.Ranges, j, 1, Range{low, num - 1})
-				rs.Ranges = splice(rs.Ranges, j+1, 0, Range{num + 1, high})
+				rs.Ranges = splice(rs.Ranges, j, 1, Range{low, num - 1, curRange.Metadata})
+				rs.Ranges = splice(rs.Ranges, j+1, 0, Range{num + 1, high, curRange.Metadata})
 			}
 			break
 		}
@@ -88,10 +89,12 @@ func (rs *RangeSet) RemoveInts(nums []uint32) {
 func (rs *RangeSet) AddRange(r Range) {
 	if r.Low > r.High {
 		// throw an error
+		//log.Panic("Low above high")
 	}
 
 	if len(rs.Ranges) == 0 {
 		rs.Ranges = append(rs.Ranges, r)
+		//log.Printf("Appending first range")
 		return
 	}
 
@@ -100,6 +103,7 @@ func (rs *RangeSet) AddRange(r Range) {
 	for i, curRange := range rs.Ranges {
 		// if the range comes before all the other ranges with no overlap
 		if r.High < curRange.Low-1 {
+			//log.Printf("Simple splice range")
 			rs.Ranges = splice(rs.Ranges, i, 0, r)
 			return
 		}
@@ -113,6 +117,7 @@ func (rs *RangeSet) AddRange(r Range) {
 		if overlapStartIdx == -1 && isLastLoop {
 			// last loop and no overlapStart found
 			// it must come after all the other ranges
+			//log.Printf("Simple append range")
 			rs.Ranges = append(rs.Ranges, r)
 			return
 		}
@@ -123,7 +128,8 @@ func (rs *RangeSet) AddRange(r Range) {
 			low := math.Min(float64(overlapStart), float64(r.Low))
 			high := math.Max(float64(curRange.High), float64(r.High))
 			overlappingRangeCount := i - overlapStartIdx + 1
-			newRange := Range{uint32(low), uint32(high)}
+			newRange := Range{uint32(low), uint32(high), r.Metadata}
+			//log.Printf("Advanced splice range")
 			rs.Ranges = splice(rs.Ranges, overlapStartIdx, overlappingRangeCount, newRange)
 			return
 		}
@@ -155,8 +161,8 @@ func (rs *RangeSet) RemoveRange(r Range) {
 			if r.High >= curRange.High {
 				rs.Ranges[i].High = r.Low - 1
 			} else {
-				rs.Ranges = splice(rs.Ranges, i, 1, Range{curRange.Low, r.Low - 1})
-				rs.Ranges = splice(rs.Ranges, i+1, 0, Range{r.High + 1, curRange.High})
+				rs.Ranges = splice(rs.Ranges, i, 1, Range{curRange.Low, r.Low - 1, curRange.Metadata})
+				rs.Ranges = splice(rs.Ranges, i+1, 0, Range{r.High + 1, curRange.High, curRange.Metadata})
 				return
 			}
 		}
@@ -166,16 +172,16 @@ func (rs *RangeSet) RemoveRange(r Range) {
 	}
 }
 
-func (rs *RangeSet) contains(num uint32) bool {
+func (rs *RangeSet) Contains(num uint32) *Range {
 
 	// This is not very efficient, have to optimize with binary chop
 
 	for _, curRange := range rs.Ranges {
 		if contains(curRange, num) {
-			return true
+			return &curRange
 		}
 	}
-	return false
+	return nil
 }
 
 // helpers

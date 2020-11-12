@@ -5,6 +5,7 @@ import (
 	"goaway/internal/utils"
 	"log"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -14,10 +15,11 @@ import (
 )
 
 var IpList map[uint32]models.IPRange
+var RangeIpList utils.RangeSet
 
 func LoadDatabase() (int, int64) {
 
-	log.Println("Loading database, will take a long while")
+	log.Println("Loading database, will take roughly 1 minute")
 	startTime := time.Now()
 
 	db, err := gorm.Open(sqlite.Open(os.Getenv("DB_FILE_PATH")), &gorm.Config{
@@ -44,21 +46,61 @@ func LoadDatabase() (int, int64) {
 		return nil
 	})
 
-	log.Printf("Loaded DB rows %d in %dms", len(records))
+	log.Printf("Loaded single IP DB rows %d", len(records))
 	IpList = records
 
-	totalRecords := len(records)
+	var rangeRecords utils.RangeSet
+	// Now we load ranges in rangeset, the fun part!
+	db.Table("ip_ranges").Where("end <> ?", 0).FindInBatches(&results, 10000, func(tx *gorm.DB, batch int) error {
+		for _, result := range results {
+
+			var md map[string]string
+			md = make(map[string]string)
+			md["List"] = result.List
+			md["Timestamp"] = strconv.Itoa(int(result.Timestamp.Unix()))
+
+			r := utils.Range{
+				Low:      result.Start,
+				High:     result.End,
+				Metadata: md,
+			}
+			rangeRecords.AddRange(r)
+		}
+		return nil
+	})
+
+	RangeIpList = rangeRecords
+
+	log.Printf("Loaded range records rows %d ", len(RangeIpList.Ranges))
+
+	totalRecords := len(records) + len(rangeRecords.Ranges)
 	totalTime := time.Now().Sub(startTime).Milliseconds()
+
+	log.Printf("Loaded single All DB rows %d in %d ms", totalRecords, totalTime)
 
 	return totalRecords, totalTime
 }
 
 func FindSuspiciousIp(ip uint32) (models.IPRange, bool) {
 
-	log.Printf("Loaded DB rows %d", len(IpList))
+	// First check ranges
+	r := RangeIpList.Contains(ip)
+	if r != nil {
+		log.Printf("Got range with metadata %s, %s", r.Metadata["Timestamp"], r.Metadata["List"])
+		integerStamp, _ := strconv.Atoi(r.Metadata["Timestamp"])
+		stamp := time.Unix(int64(integerStamp), 0)
+		return models.IPRange{
+			Start:     r.Low,
+			End:       r.High,
+			List:      r.Metadata["List"],
+			Timestamp: stamp,
+		}, true
+	}
 
+	// If not check ips
 	val, ok := IpList[ip]
 	return val, ok
+
 }
 
 func RunServer() {
