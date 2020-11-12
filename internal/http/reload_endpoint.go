@@ -10,9 +10,11 @@ func GetReload(c *gin.Context) {
 
 	log.Println("Inside Get Reload")
 
-	LoadDatabase()
+	totRecords, totTime := LoadDatabase()
 
-	c.JSON(200, Response{
-		Status: "ok",
+	c.JSON(200, gin.H{
+		"status":  "ok",
+		"records": totRecords,
+		"time":    totTime,
 	})
 }

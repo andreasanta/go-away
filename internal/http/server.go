@@ -5,6 +5,7 @@ import (
 	"goaway/internal/utils"
 	"log"
 	"os"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/sqlite"
@@ -14,9 +15,10 @@ import (
 
 var IpList map[uint32]models.IPRange
 
-func LoadDatabase() {
+func LoadDatabase() (int, int64) {
 
 	log.Println("Loading database, will take a long while")
+	startTime := time.Now()
 
 	db, err := gorm.Open(sqlite.Open(os.Getenv("DB_FILE_PATH")), &gorm.Config{
 		SkipDefaultTransaction: true,
@@ -42,9 +44,13 @@ func LoadDatabase() {
 		return nil
 	})
 
-	log.Printf("Loaded DB rows %d", len(records))
+	log.Printf("Loaded DB rows %d in %dms", len(records))
 	IpList = records
 
+	totalRecords := len(records)
+	totalTime := time.Now().Sub(startTime).Milliseconds()
+
+	return totalRecords, totalTime
 }
 
 func FindSuspiciousIp(ip uint32) (models.IPRange, bool) {
