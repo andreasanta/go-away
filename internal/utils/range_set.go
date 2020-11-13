@@ -175,7 +175,9 @@ func (rs *RangeSet) RemoveRange(r Range) {
 func (rs *RangeSet) Contains(num uint32) *Range {
 
 	// This is not very efficient, have to optimize with binary chop
-
+	// TOOPT: binary chop
+	// O(n)
+	// O(log n) -> BST
 	for _, curRange := range rs.Ranges {
 		if contains(curRange, num) {
 			return &curRange

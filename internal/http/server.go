@@ -99,6 +99,7 @@ func FindSuspiciousIp(ip uint32) (models.IPRange, bool) {
 	}
 
 	// If not check ips
+	log.Printf("Checking against hashmap %d", ip)
 	val, ok := IpList[ip]
 	return val, ok
 

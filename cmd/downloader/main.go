@@ -22,6 +22,11 @@ import (
 	"gorm.io/gorm/logger"
 )
 
+const chunk = 256
+
+var uniqueIpMap map[uint32]bool
+var total int = 0
+
 func main() {
 
 	utils.LoadConfig()
@@ -48,6 +53,7 @@ func main() {
 	sqdb, _ := db.DB()
 	defer sqdb.Close()
 
+	uniqueIpMap = make(map[uint32]bool)
 	loadIpsetsFiles(db)
 
 }
@@ -57,7 +63,7 @@ func prepareDatabase() (db *gorm.DB) {
 	os.Remove(os.Getenv("DB_FILE_PATH"))
 	db, err := gorm.Open(sqlite.Open(os.Getenv("DB_FILE_PATH")), &gorm.Config{
 		SkipDefaultTransaction: true,
-		Logger:                 logger.Default.LogMode(logger.Silent),
+		Logger:                 logger.Default.LogMode(logger.Error),
 	})
 
 	//db.LogMode(true)
@@ -84,8 +90,6 @@ func loadSingleFile(db *gorm.DB, path string) {
 
 	scanner := bufio.NewScanner(file)
 	var records []models.IPRange
-	const chunk = 256
-	total := 0
 
 	for scanner.Scan() {
 
@@ -122,8 +126,9 @@ func loadSingleFile(db *gorm.DB, path string) {
 			db.Create(&records)
 			records = nil
 
-		} else {
+		} else if !(uniqueIpMap[start]) {
 			records = append(records, r)
+			uniqueIpMap[start] = true
 		}
 	}
 
@@ -148,6 +153,8 @@ func loadIpsetsFiles(db *gorm.DB) {
 		loadSingleFile(db, file)
 		log.Printf("Loaded in %dms", time.Now().Sub(initialTime).Milliseconds())
 	}
+
+	log.Printf("Total processed records %d", total)
 
 }
 
