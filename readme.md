@@ -67,7 +67,7 @@ Remember it will take rougly two minutes to reload the database from disk, after
 
 > NOTE: the reload process is totally thread safe since and it does not interrupt the service execution per se.
 
-# Quick Doker containerization
+# Quick Docker containerization
 
 Unfortunately I did not have much time to write a proper Dockerfile, but you can find a basic one in "Dockerfile".
 
