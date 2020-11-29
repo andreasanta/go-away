@@ -1,6 +1,7 @@
 package utils
 
 // Courtesy of https://github.com/rolyatmax/go-rangeset/blob/master/range_set.go
+// With some performance hacks by Andrea Santa <andrea.santa@gmail.com>
 
 import (
 	"math"
@@ -174,15 +175,34 @@ func (rs *RangeSet) RemoveRange(r Range) {
 
 func (rs *RangeSet) Contains(num uint32) *Range {
 
-	// This is not very efficient, have to optimize with binary chop
-	// TOOPT: binary chop
-	// O(n)
-	// O(log n) -> BST
-	for _, curRange := range rs.Ranges {
+	/*
+	 * We perform binary chop here, instead of complete linear lookup.
+	 *
+	 * This has been modified by Andrea to improve performance when numerous
+	 * ranges are introduced.
+	 */
+	begin := 0
+	end := len(rs.Ranges)
+	var midpoint int
+	var curRange Range
+
+	for end > begin {
+
+		midpoint = (end + begin) / 2
+
+		curRange = rs.Ranges[midpoint]
 		if contains(curRange, num) {
 			return &curRange
 		}
+
+		if num < curRange.Low {
+			end = midpoint - 1
+		} else {
+			begin = midpoint + 1
+		}
+
 	}
+
 	return nil
 }
 

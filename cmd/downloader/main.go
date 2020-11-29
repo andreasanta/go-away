@@ -114,7 +114,7 @@ func loadSingleFile(db *gorm.DB, path string) {
 		r := models.IPRange{
 			Start:     start,
 			End:       end,
-			List:      file.Name(),
+			List:      filepath.Base(file.Name()),
 			Timestamp: finfo.ModTime(),
 		}
 
